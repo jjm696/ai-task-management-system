@@ -1,0 +1,88 @@
+# =====================================================
+# TaskFlow 一键启动 docker-compose
+# 服务：
+#   - mysql:    数据库，数据持久化到 named volume
+#   - backend:  Express + Prisma，等待 mysql healthy 后启动
+#   - frontend: Nginx 静态托管 + /api 反向代理到 backend
+#
+# 用法：
+#   1. cp .env.example .env  # 修改密码、JWT_SECRET、AI_API_KEY 等
+#   2. docker compose up -d --build
+#   3. 浏览器访问 http://localhost  （或 .env 中 FRONTEND_PORT）
+# =====================================================
+
+name: taskflow
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: taskflow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      TZ: Asia/Shanghai
+    # 仅暴露在容器网络内；如需本机用客户端连接，把下面端口打开
+    # ports:
+    #   - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - taskflow-net
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: taskflow-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: "mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      AI_API_KEY: ${AI_API_KEY}
+      AI_BASE_URL: ${AI_BASE_URL}
+      AI_MODEL: ${AI_MODEL}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-60000}
+      TZ: Asia/Shanghai
+    # 仅在本机直接调试后端时打开；正常通过前端 nginx 反代访问
+    # ports:
+    #   - "${BACKEND_PORT:-3000}:3000"
+    networks:
+      - taskflow-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: taskflow-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - taskflow-net
+
+volumes:
+  mysql_data:
+    name: taskflow_mysql_data
+
+networks:
+  taskflow-net:
+    driver: bridge

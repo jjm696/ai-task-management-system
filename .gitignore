@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# environment secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# build outputs
+dist/
+**/dist/
+
+# logs and reports
+*.log
+dev-logs/
+c-drive-report/
+
+# local cleanup / machine maintenance scripts
+cleanup-*.ps1
+scan-c-drive.ps1
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
