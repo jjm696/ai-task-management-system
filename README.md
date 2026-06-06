@@ -1,83 +1,135 @@
-# TaskFlow 智能任务管理
+﻿# AI Task Management System
 
-集成 Claude API 的任务管理系统：用户输入一句话，AI 自动拆解为带优先级和预估工时的子任务。
+一个基于 Vue 3、Express、Prisma、MySQL 和 AI API 的智能任务管理系统。系统支持任务 CRUD、主子任务拆解、每日计划、仪表盘统计和 AI 周报生成，适合个人任务规划和 AI 辅助效率管理场景。
 
 ## 技术栈
 
-- 前端：Vue 3 + Element Plus + Vite + Pinia + Axios
-- 后端：Node.js + Express + Prisma + MySQL 8.0
-- AI：兼容 OpenAI 协议的大模型服务（可接 Claude/DeepSeek 等中转或服务商）
-- 部署：Docker + Nginx
+- 前端：Vue 3、Vite、Vue Router、Pinia、Element Plus、Axios、ECharts、Marked、DOMPurify
+- 后端：Node.js、Express、Prisma、MySQL、JWT、Zod
+- AI 接入：OpenAI-Compatible API，可对接 Claude、DeepSeek 或其他兼容服务
+- 部署：Docker、Docker Compose、Nginx
+
+## 核心功能
+
+- 用户认证：支持注册、登录、JWT 鉴权和用户数据隔离。
+- 任务管理：支持任务创建、编辑、删除、状态切换、优先级、截止日期和预计工时。
+- 主子任务：通过 Task 自关联结构支持主任务和子任务管理。
+- AI 任务拆解：根据用户输入自动生成带优先级、预计工时和说明的子任务。
+- 每日计划：将长期任务池转化为当天执行清单，支持加入计划、状态同步和进度统计。
+- 仪表盘统计：展示任务状态分布、近 7 天完成趋势和计划完成情况。
+- AI 周报：根据任务完成情况生成 Markdown 周报，并进行安全预览。
+
+## 项目亮点
+
+- 使用 Prisma 建模任务自关联关系，支持主任务、子任务和每日计划之间的关联查询。
+- 对 AI 输出使用固定 JSON 结构、字段校验和失败重试，降低模型返回格式异常对业务流程的影响。
+- 使用 `completedAt` 区分任务完成时间和更新时间，让完成趋势统计更准确。
+- 使用 DOMPurify 处理 Markdown 周报预览，降低富文本渲染风险。
+- 提供 Docker Compose 编排，包含 MySQL、后端服务、前端 Nginx 托管和 `/api` 反向代理。
 
 ## 目录结构
 
-```
-.
-├── backend/                  后端服务
-│   ├── src/                  Express 入口、路由、控制器、中间件、服务
-│   ├── prisma/schema.prisma  Prisma 数据模型
-│   ├── utils/aiClient.js     AI 调用封装（重试 + JSON 校验）
-│   ├── Dockerfile
-│   ├── package.json
-│   └── package-lock.json
-├── frontend/                 Vue 3 前端
-│   ├── src/                  页面、组件、路由、Pinia、API 封装
-│   ├── nginx.conf            SPA 托管 + /api 反向代理
-│   ├── Dockerfile
-│   ├── package.json
-│   └── package-lock.json
-├── docker-compose.yml        mysql / backend / frontend 编排
-├── .env.example              部署环境变量模板
-├── start.ps1                 Windows 一键启动脚本
-├── start.sh                  Linux/macOS 一键启动脚本
-└── DOCKER_DEPLOY.md          Docker 部署说明
-```
-
-## Docker 部署
-
-第一次使用 Docker 部署请看：
-
 ```text
-DOCKER_DEPLOY.md
+.
+├── backend/                   # Express 后端服务
+│   ├── prisma/schema.prisma   # Prisma 数据模型
+│   ├── src/                   # 路由、控制器、中间件、服务
+│   ├── scripts/               # AI 调用测试脚本
+│   ├── Dockerfile
+│   └── package.json
+├── frontend/                  # Vue 3 前端项目
+│   ├── src/                   # 页面、组件、路由、Pinia、API 封装
+│   ├── nginx.conf             # SPA 托管和 /api 反向代理
+│   ├── Dockerfile
+│   └── package.json
+├── docker-compose.yml         # MySQL / Backend / Frontend 编排
+├── .env.example               # Docker 部署环境变量模板
+├── LOCAL_DEV.md               # 本地开发说明
+├── DOCKER_DEPLOY.md           # Docker 部署说明
+└── README.md
 ```
 
-Windows 快速启动：
+## Docker 快速启动
 
-```powershell
-cd D:\实战项目\智能任务管理
-.\start.ps1
+复制环境变量模板：
+
+```bash
+copy .env.example .env
 ```
 
-启动后访问：
+修改 `.env` 中的数据库密码、JWT 密钥和 AI 配置后启动：
+
+```bash
+docker compose up -d --build
+```
+
+默认访问地址：
 
 ```text
 http://localhost
 ```
 
-如果 `.env` 中修改了 `FRONTEND_PORT`，访问对应端口。
+## 本地开发
 
-## 本地传统开发
+### 1. 配置数据库
 
-如果暂时不使用 Docker，可以使用本机 MySQL + Navicat + 终端运行：
+创建 MySQL 数据库：
 
-```text
-LOCAL_DEV.md
+```sql
+CREATE DATABASE ai_task_manager DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ```
 
-核心流程：
+### 2. 启动后端
 
-```powershell
-# 1. Navicat 创建数据库 ai_task_manager
-
-# 2. 配置 backend/.env
+```bash
 cd backend
 copy .env.example .env
-
-# 3. 同步表结构
+npm install
 npx prisma generate
 npm run prisma:push
-
-# 4. 回到项目根目录，一键打开前后端开发终端
-cd ..
-.\start-dev.ps1
+npm run dev
 ```
+
+后端默认地址：
+
+```text
+http://localhost:3000
+```
+
+### 3. 启动前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+前端默认地址：
+
+```text
+http://localhost:5173
+```
+
+## 后端环境变量
+
+```text
+PORT=3000
+NODE_ENV=development
+DATABASE_URL="mysql://root:your_password@localhost:3306/ai_task_manager"
+JWT_SECRET=please_change_this_to_a_long_random_string
+JWT_EXPIRES_IN=7d
+AI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+AI_BASE_URL=https://api.openai-sb.com/v1
+AI_MODEL=claude-3-5-sonnet-20241022
+AI_TIMEOUT_MS=60000
+AI_MAX_RETRIES=3
+AI_RETRY_BASE_DELAY_MS=1000
+AI_TEMPERATURE=0.3
+AI_MAX_TOKENS=2048
+```
+
+## 安全说明
+
+- `.env` 不应提交到 GitHub，仓库只保留 `.env.example`。
+- AI Key、数据库密码和 JWT 密钥应通过环境变量配置。
+- Markdown 周报渲染前需要保留安全过滤，避免 XSS 风险。
